@@ -3,6 +3,8 @@ from langchain.chat_models import ChatOpenAI
 from langchain.schema import (SystemMessage, HumanMessage, AIMessage)
 from langchain.llms import OpenAI
 from langchain.callbacks import get_openai_callback
+from langchain.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 #ストリーミング表示用：11/4時点で微妙なためコメントアウト
 #from langchain.callbacks import StreamlitCallbackHandler
 import configparser
@@ -41,9 +43,21 @@ def main():
     total_tokens_used = 0
     total_cost = 0    
     init_messages(total_tokens_used,total_cost)
-    #init_messages()
+    
+    #LangChain設定
     #ChatOpenAIクラスのインスタンス化
     llm = select_model()
+    #モデルのプロンプト設定
+    opt_system=sidebar_opt_system()
+    prompt=ChatPromptTemplate.from_messages([
+        ("system",opt_system),
+        ("user","{input}")
+    ])
+    #GPTの返答をパースするための処理
+    output_parser=StrOutputParser()
+    #LCELでの記法
+    chain = prompt | llm | output_parser
+    
     #サイドバー：コスト計上用
     total_tokens_display, total_cost_display = initialize_cost_display()
     calc_cost(total_tokens_used,total_cost,total_tokens_display, total_cost_display)
@@ -56,7 +70,10 @@ def main():
         #上部にスピナーとは別のアニメーションが入る。
         #with st.chat_message("assistant"):
             with get_openai_callback() as cb:
-                response = llm(st.session_state.messages)
+                #response = llm(st.session_state.messages)
+                #LangChain利用
+                response = chain.invoke({"input": st.session_state.messages})
+                
                 #ストリーミング表示用：11/4時点で微妙なためコメントアウト
                 #システムメッセージの上にスピナーが残り続ける+ストリーミング表示になってなさそう
                 #st_callback = StreamlitCallbackHandler(st.container())
@@ -67,7 +84,9 @@ def main():
                 total_cost += cb.total_cost
                 #サイドバーに反映
                 calc_cost(total_tokens_used,total_cost,total_tokens_display, total_cost_display)
-        st.session_state.messages.append(AIMessage(content=response.content))
+        #st.session_state.messages.append(AIMessage(content=response.content))
+        #LangChainを利用したため、responceの型が変更になったことへの対応
+        st.session_state.messages.append(AIMessage(content=response))
 
     # チャット履歴の表示
     messages = st.session_state.get('messages', [])
@@ -103,6 +122,11 @@ def select_model():
     temperature = st.sidebar.slider("Temperature:", min_value=0.0, max_value=2.0, value=0.0, step=0.1)
 
     return ChatOpenAI(openai_api_key=input_openai_api_key,temperature=temperature, model_name=model_name)
+
+def sidebar_opt_system():
+    # サイドバーにテキスト入力ウィジェットを追加
+    opt_system = st.sidebar.text_input("Enter the system prompt:")
+    return opt_system
 
 # サイドバー：履歴の削除
 def init_messages(tokens,cost):
