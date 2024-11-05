@@ -39,6 +39,7 @@ def main():
 
     #サイドバーの表示
     options_customs()
+    
     # サイドバー：履歴の削除
     total_tokens_used = 0
     total_cost = 0    
@@ -78,6 +79,8 @@ def main():
                 #システムメッセージの上にスピナーが残り続ける+ストリーミング表示になってなさそう
                 #st_callback = StreamlitCallbackHandler(st.container())
                 #response = llm(st.session_state.messages,callbacks=[st_callback])
+                #ストリーミング表示用：11/5データの型が「write_stream」で想定しているものと異なるためエラー
+                #response = st.write_stream(chain.invoke({"input": st.session_state.messages}))
                 
                 # トークン数とコストを変数に格納
                 total_tokens_used += cb.total_tokens
@@ -106,6 +109,19 @@ def main():
 def options_customs():
     # サイドバーのタイトルを表示
     st.sidebar.title("Options")    
+    
+    # カスタムCSSを使って背景色を設定
+    st.markdown(
+        """
+        <style>
+        /* メインコンテンツエリアの背景色 */
+        .main {
+            background-color: rgb(241, 235, 227); /* RGBで任意の色に設定 */
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
 # サイドバー：モデルの選択
 def select_model():
@@ -121,7 +137,7 @@ def select_model():
     # 初期値は0.0、刻み幅は0.1とする
     temperature = st.sidebar.slider("Temperature:", min_value=0.0, max_value=2.0, value=0.0, step=0.1)
 
-    return ChatOpenAI(openai_api_key=input_openai_api_key,temperature=temperature, model_name=model_name)
+    return ChatOpenAI(openai_api_key=input_openai_api_key,temperature=temperature, model_name=model_name,streaming=True)
 
 def sidebar_opt_system():
     # サイドバーにテキスト入力ウィジェットを追加
